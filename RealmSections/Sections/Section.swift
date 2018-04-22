@@ -8,13 +8,13 @@
 
 import RealmSwift
 
-enum UpdateSectionType {
+enum UpdateChatDataType {
     case delete, insert, modif
 }
 
 protocol SectionDelegate: class {
     
-    func section(_ section: Section, updateWith type: UpdateSectionType, for indexes: [Int])
+    func section(_ section: Section, updateWith type: UpdateChatDataType, for indexes: [Int])
     
 }
 
@@ -34,11 +34,7 @@ class Section {
     }
     
     private func prepareMessages() {
-        let digit = Int(date / 10)
-        
-        let lower = digit * 10
-        let upper = lower + 10
-        messages = try! Realm().objects(Message.self).filter("(chatId = %@) AND (sortValue BETWEEN {%@, %@})", "0", lower, upper).sorted(byKeyPath: "sortValue", ascending: true)
+        messages = try! Realm().objects(Message.self).filter("chatId = %@ AND sectionIdentifier == %@", "0", date).sorted(byKeyPath: "sortValue", ascending: true)
     }
     
     private func setNotificationBlock() {

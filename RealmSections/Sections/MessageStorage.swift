@@ -10,10 +10,16 @@ import RealmSwift
 
 protocol MessageStorageDelegate: class {
     
-    func messageStorage(_ messageStorage: MessageStorage,
-                        deletionIndexPaths: [IndexPath],
-                        insertionIndexPaths: [IndexPath],
-                        modificationIndexPaths: [IndexPath])
+    func messageStorageDidUpdateMessages(_ messageStorage: MessageStorage,
+                                         deletionIndexPaths: [IndexPath],
+                                         insertionIndexPaths: [IndexPath],
+                                         modificationIndexPaths: [IndexPath])
+    func messageStorageDidUpdateSections(_ messageStorage: MessageStorage,
+                                         deletionIndexSet: IndexSet,
+                                         insertionIndexSet: IndexSet,
+                                         modificationIndexSet: IndexSet)
+    
+    func messageStorageInitialSections(_ messageStorage: MessageStorage)
     
 }
 
@@ -22,11 +28,17 @@ class MessageStorage {
     lazy var sections: [Section] = [Section]()
     var expectedCount: Int = 0
     private var count: Int = 0
-    private var deleteIndexPaths: [IndexPath] = [IndexPath]()
-    private var insertIndexPaths: [IndexPath] = [IndexPath]()
-    private var modifIndexPaths: [IndexPath] = [IndexPath]()
+    
+    private var messagesDeleteIndexPaths: [IndexPath] = [IndexPath]()
+    private var messagesInsertIndexPaths: [IndexPath] = [IndexPath]()
+    private var messagesModifIndexPaths: [IndexPath] = [IndexPath]()
+    
+    private var sectionsDeleteIndexSet: NSMutableIndexSet = NSMutableIndexSet()
+    private var sectionsInsertIndexSet: NSMutableIndexSet = NSMutableIndexSet()
+    private var sectionsModifIndexSet: NSMutableIndexSet = NSMutableIndexSet()
     
     private weak var delegate: MessageStorageDelegate!
+    private var notification: NotificationToken?
     
     init(messages: Results<Message>, delegate: MessageStorageDelegate) {
         self.delegate = delegate
@@ -40,17 +52,60 @@ class MessageStorage {
             return
         }
         
-        createSection(with: messages.first!.sortValue)
-        
-        var lastDigit: Int = Int(messages.first!.sortValue / 10)
-        for mesIndex in 1..<messages.count {
-            let sortValue = messages[mesIndex].sortValue
-            let digit = Int(sortValue / 10)
-            if digit > lastDigit {
-                createSection(with: sortValue)
-                lastDigit = digit
+        let request = messages.distinct(by: ["sectionIdentifier"]).sorted(byKeyPath: "sectionIdentifier")
+        notification = request.observe({ [weak self] (changes) in
+            guard let strongSelf = self else {
+                return
             }
+            switch changes {
+            case .initial(let sections):
+                strongSelf.initial(sections: sections)
+            case .update(let sections, let deletions, let insertions, let modifications):
+                strongSelf.update(sections: sections, indexes: deletions, type: .delete)
+                strongSelf.update(sections: sections, indexes: insertions, type: .insert)
+                strongSelf.update(sections: sections, indexes: modifications, type: .modif)
+                strongSelf.commitSectionsUpdates()
+            case .error(let error):
+                fatalError("\(error)")
+            }
+        })
+    }
+    
+    private func initial(sections: Results<Message>) {
+        sections.forEach { createSection(with: $0.sectionIdentifier) }
+        delegate.messageStorageInitialSections(self)
+    }
+    
+    private func update(sections: Results<Message>, indexes: [Int], type: UpdateChatDataType) {
+        guard !indexes.isEmpty else {
+            print("Update items empty \(type)")
+            return
         }
+        
+        switch type {
+        case .delete:
+            indexes.forEach {
+                sectionsDeleteIndexSet.add($0)
+                self.sections.remove(at: $0)
+            }
+        case .insert:
+            indexes.forEach {
+                sectionsInsertIndexSet.add($0)
+                insertSection(with: sections[$0].sectionIdentifier, at: $0)
+            }
+        case .modif:
+            print("Modif sections \(indexes)")
+        }
+    }
+    
+    private func commitSectionsUpdates() {
+        delegate.messageStorageDidUpdateSections(self,
+                                                 deletionIndexSet: sectionsDeleteIndexSet as IndexSet,
+                                                 insertionIndexSet: sectionsInsertIndexSet as IndexSet,
+                                                 modificationIndexSet: sectionsModifIndexSet as IndexSet)
+        sectionsDeleteIndexSet.removeAllIndexes()
+        sectionsInsertIndexSet.removeAllIndexes()
+        sectionsModifIndexSet.removeAllIndexes()
     }
     
     private func createSection(with date: Int) {
@@ -58,39 +113,40 @@ class MessageStorage {
         sections.append(section)
     }
     
-    func updateSections(_ messages: Results<Message>, inserIndexes: [Int]) {
-        let sortValues = inserIndexes.map { messages[$0].sortValue }
-        let digitValues = sortValues.map { Int($0 / 10) }
-        guard digitValues.count != sections.count else {
-            return
-        }
+    private func insertSection(with date: Int, at index: Int) {
+        let section = Section(date: date, delegate: self)
+        sections.insert(section, at: index)
+    }
+    
+    deinit {
+        notification?.invalidate()
     }
     
 }
 
 extension MessageStorage: SectionDelegate {
     
-    func section(_ section: Section, updateWith type: UpdateSectionType, for indexes: [Int]) {
+    func section(_ section: Section, updateWith type: UpdateChatDataType, for indexes: [Int]) {
         let sectionIndex = sections.index(where: { $0 == section })!
         let indexPaths = indexes.map { IndexPath(item: $0, section: sectionIndex) }
         switch type {
         case .delete:
-            deleteIndexPaths += indexPaths
+            messagesDeleteIndexPaths += indexPaths
         case .insert:
-            insertIndexPaths += indexPaths
+            messagesInsertIndexPaths += indexPaths
         case .modif:
-            modifIndexPaths += indexPaths
+            messagesModifIndexPaths += indexPaths
         }
         
         count += indexes.count
         if count >= expectedCount {
-            delegate.messageStorage(self,
-                                    deletionIndexPaths: deleteIndexPaths,
-                                    insertionIndexPaths: insertIndexPaths,
-                                    modificationIndexPaths: modifIndexPaths)
-            deleteIndexPaths.removeAll()
-            insertIndexPaths.removeAll()
-            modifIndexPaths.removeAll()
+            delegate.messageStorageDidUpdateMessages(self,
+                                                     deletionIndexPaths: messagesDeleteIndexPaths,
+                                                     insertionIndexPaths: messagesInsertIndexPaths,
+                                                     modificationIndexPaths: messagesModifIndexPaths)
+            messagesDeleteIndexPaths.removeAll()
+            messagesInsertIndexPaths.removeAll()
+            messagesModifIndexPaths.removeAll()
             expectedCount = 0
             count = 0
         }

@@ -24,28 +24,12 @@ class Message: Object {
     
     @objc dynamic var id: String = ""
     @objc dynamic var chatId: String = ""
-    @objc dynamic var textContent: TextContent?
-    @objc dynamic var sortValue: Int = 0
-    
-    override class func primaryKey() -> String? {
-        return "id"
+    @objc dynamic var sortValue: Int = 0 {
+        didSet {
+            sectionIdentifier = Int(sortValue / 10)
+        }
     }
-    
-}
-
-class TextContent: Object {
-    
-    @objc dynamic var id: String = ""
-    @objc dynamic var ownerId: String = ""
-
-    let owners = LinkingObjects(fromType: Message.self, property: "textContent")
-    var owner: Message? {
-        return owners.first
-    }
-//    var owner: Message? {
-//        let realm = try! Realm()
-//        return realm.object(ofType: Message.self, forPrimaryKey: ownerId)
-//    }
+    @objc dynamic var sectionIdentifier: Int = 0
     
     override class func primaryKey() -> String? {
         return "id"

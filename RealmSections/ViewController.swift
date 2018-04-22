@@ -24,23 +24,26 @@ class ViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
     
+        print(Realm.Configuration.defaultConfiguration.fileURL!)
+        
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
         
         messages = try! Realm().objects(Message.self).filter("chatId == %@", "0").sorted(byKeyPath: "sortValue", ascending: true)
         notification = messages.observe({ (changes) in
             switch changes {
-            case .initial(_):
+            case .initial(let messages):
+                self.messageStorage = MessageStorage(messages: messages, delegate: self)
                 self.tableView.reloadData()
-            case .update(_, let deletions, let insertions, let modifications):
+            case .update(let messages, let deletions, let insertions, let modifications):
                 self.messageStorage.expectedCount = deletions.count + insertions.count + modifications.count
-                
+                if self.messageStorage.sections.isEmpty, !insertions.isEmpty {
+                    self.messageStorage = MessageStorage(messages: messages, delegate: self)
+                }
                 print("Deletions: \(deletions)\nInsertions: \(insertions)\nModif: \(modifications)\n-------")
             case .error(let error):
                 fatalError("\(error)")
             }
         })
-        
-        messageStorage = MessageStorage(messages: self.messages, delegate: self)
         
         service.addInitValues()
     }
@@ -74,7 +77,7 @@ class ViewController: UIViewController {
 extension ViewController: UITableViewDelegate, UITableViewDataSource {
     
     func numberOfSections(in tableView: UITableView) -> Int {
-        return messageStorage.sections.count
+        return messageStorage?.sections.count ?? 0
     }
     
     func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
@@ -103,10 +106,25 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
 
 extension ViewController: MessageStorageDelegate {
     
-    func messageStorage(_ messageStorage: MessageStorage,
-                        deletionIndexPaths: [IndexPath],
-                        insertionIndexPaths: [IndexPath],
-                        modificationIndexPaths: [IndexPath]) {
+    func messageStorageInitialSections(_ messageStorage: MessageStorage) {
+        tableView.reloadData()
+    }
+    
+    func messageStorageDidUpdateSections(_ messageStorage: MessageStorage,
+                                         deletionIndexSet: IndexSet,
+                                         insertionIndexSet: IndexSet,
+                                         modificationIndexSet: IndexSet) {
+        tableView.beginUpdates()
+        tableView.deleteSections(deletionIndexSet, with: .automatic)
+        tableView.insertSections(insertionIndexSet, with: .automatic)
+        tableView.reloadSections(modificationIndexSet, with: .automatic)
+        tableView.endUpdates()
+    }
+    
+    func messageStorageDidUpdateMessages(_ messageStorage: MessageStorage,
+                                         deletionIndexPaths: [IndexPath],
+                                         insertionIndexPaths: [IndexPath],
+                                         modificationIndexPaths: [IndexPath]) {
         tableView.beginUpdates()
         tableView.deleteRows(at: deletionIndexPaths, with: .automatic)
         tableView.insertRows(at: insertionIndexPaths, with: .automatic)

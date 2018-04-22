@@ -30,7 +30,7 @@ class Service {
         }
         
         var indexes: [Int] = []
-        for index in 0..<50 {
+        for index in 0..<15 {
             indexes.append(index)
         }
         
@@ -86,12 +86,6 @@ class Service {
             message.id = "\($0)"
             message.sortValue = $0 + Int(arc4random_uniform(21) + 10)
             
-            let textContent = TextContent()
-            textContent.ownerId = message.id
-            textContent.id = "\($0 + 43)"
-            
-            message.textContent = textContent
-            
             messages.append(message)
         }
         
@@ -132,38 +126,6 @@ class Service {
 //                chat.messages.append(objectsIn: realm.objects(Message.self).filter("chatId == %@", "0").sorted(byKeyPath: "sortValue", ascending: true))
             })
         }
-    }
-    
-    func attemptToAddDuplicate() {
-        let realm = try! Realm()
-        let chat = realm.objects(Chat.self).first!
-        
-        
-        if let ttt = chat.messages.first(where: { $0.textContent?.id == "1996" }) {
-            printTimeElapsedWhenRunningCode(title: "Get owner", operation: {
-                _ = ttt.textContent!.owner!
-            })
-        }
-        
-        let message = Message()
-        message.id = "1957"
-        message.sortValue = Int(arc4random_uniform(21) + 10)
-        
-        let textContent = TextContent()
-        textContent.ownerId = message.id
-        textContent.id = "1996"
-        message.textContent = textContent
-        
-        try! realm.safeWrite {
-            let new = realm.create(Message.self, value: message, update: true)
-            if let index = chat.messages.index(matching: "id == %@", "\(new.id)") {
-                chat.messages.remove(at: index)
-            }
-            
-            chat.messages.append(new)
-        }
-        
-
     }
     
     func addDuplicateArary() {
