@@ -14,6 +14,8 @@ enum UpdateChatDataType {
 
 protocol SectionDelegate: class {
     
+    var messageInSectionWasInit: Bool {get set}
+    
     func section(_ section: Section, updateWith type: UpdateChatDataType, for indexes: [Int])
     
 }
@@ -47,6 +49,8 @@ class Section {
             switch changes {
             case .initial(let messages):
                 print("Initial in section \(strongSelf.date)")
+                strongSelf.delegate.messageInSectionWasInit = true
+                strongSelf.delegate.section(strongSelf, updateWith: .insert, for: [])
 //                var indexes = [Int]()
 //                indexes.reserveCapacity(messages.underestimatedCount)
 //                for index in 0..<messages.count - 1 {

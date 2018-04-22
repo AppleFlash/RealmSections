@@ -40,6 +40,13 @@ class MessageStorage {
     private var notification: NotificationToken?
     private var paggingMessages: Results<Message>!
     
+    private var sectionDidUpdate: Bool = false
+    var messageInSectionWasInit: Bool = false
+    
+    private var updateSectionsOterwise: Bool {
+        return sectionDidUpdate && messageInSectionWasInit
+    }
+    
     init(messages: Results<Message>, delegate: MessageStorageDelegate) {
         self.delegate = delegate
         
@@ -66,6 +73,7 @@ class MessageStorage {
                 strongSelf.update(sections: sections, indexes: deletions, type: .delete)
                 strongSelf.update(sections: sections, indexes: insertions, type: .insert)
                 strongSelf.update(sections: sections, indexes: modifications, type: .modif)
+                strongSelf.sectionDidUpdate = true
             case .error(let error):
                 fatalError("\(error)")
             }
@@ -134,7 +142,7 @@ extension MessageStorage: SectionDelegate {
         }
         
         count += indexes.count
-        if count >= expectedCount {
+        if count >= expectedCount || updateSectionsOterwise {
             delegate.messageStorageDidUpdateMessages(self,
                                                      deletionIndexSet: sectionsDeleteIndexSet as IndexSet,
                                                      insertionIndexSet: sectionsInsertIndexSet as IndexSet,
@@ -151,6 +159,9 @@ extension MessageStorage: SectionDelegate {
             messagesModifIndexPaths.removeAll()
             expectedCount = 0
             count = 0
+            
+            sectionDidUpdate = false
+            messageInSectionWasInit = false
         }
     }
     
