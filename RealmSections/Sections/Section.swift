@@ -45,8 +45,17 @@ class Section {
             }
             
             switch changes {
-            case .initial(_):
+            case .initial(let messages):
                 print("Initial in section \(strongSelf.date)")
+//                var indexes = [Int]()
+//                indexes.reserveCapacity(messages.underestimatedCount)
+//                for index in 0..<messages.count - 1 {
+//                    indexes.append(index)
+//                }
+//                guard !indexes.isEmpty else {
+//                    return
+//                }
+//                strongSelf.delegate.section(strongSelf, updateWith: .insert, for: indexes)
             case .update(_, let deletions, let insertions, let modifications):
                 print("Update in section: \(strongSelf.date).\nDelete at \(deletions)\nInsert at \(insertions)\nModif at \(modifications)")
                 if !deletions.isEmpty {

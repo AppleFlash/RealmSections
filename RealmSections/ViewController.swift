@@ -154,26 +154,22 @@ extension ViewController: MessageStorageDelegate {
         tableView.reloadData()
     }
     
-    func messageStorageDidUpdateSections(_ messageStorage: MessageStorage,
+    func messageStorageDidUpdateMessages(_ messageStorage: MessageStorage,
                                          deletionIndexSet: IndexSet,
                                          insertionIndexSet: IndexSet,
-                                         modificationIndexSet: IndexSet) {
-        tableView.beginUpdates()
-        tableView.deleteSections(deletionIndexSet, with: .automatic)
-        tableView.insertSections(insertionIndexSet, with: .automatic)
-        tableView.reloadSections(modificationIndexSet, with: .automatic)
-        tableView.endUpdates()
-    }
-    
-    func messageStorageDidUpdateMessages(_ messageStorage: MessageStorage,
+                                         modificationIndexSet: IndexSet,
                                          deletionIndexPaths: [IndexPath],
                                          insertionIndexPaths: [IndexPath],
                                          modificationIndexPaths: [IndexPath]) {
         tableView.beginUpdates()
+        tableView.deleteSections(deletionIndexSet, with: .automatic)
+        tableView.insertSections(insertionIndexSet, with: .automatic)
+        tableView.reloadSections(modificationIndexSet, with: .automatic)
         tableView.deleteRows(at: deletionIndexPaths, with: .automatic)
         tableView.insertRows(at: insertionIndexPaths, with: .automatic)
         tableView.reloadRows(at: modificationIndexPaths, with: .automatic)
         tableView.endUpdates()
+
     }
     
 }

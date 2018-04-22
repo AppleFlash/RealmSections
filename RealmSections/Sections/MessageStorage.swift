@@ -11,13 +11,12 @@ import RealmSwift
 protocol MessageStorageDelegate: class {
     
     func messageStorageDidUpdateMessages(_ messageStorage: MessageStorage,
+                                         deletionIndexSet: IndexSet,
+                                         insertionIndexSet: IndexSet,
+                                         modificationIndexSet: IndexSet,
                                          deletionIndexPaths: [IndexPath],
                                          insertionIndexPaths: [IndexPath],
                                          modificationIndexPaths: [IndexPath])
-    func messageStorageDidUpdateSections(_ messageStorage: MessageStorage,
-                                         deletionIndexSet: IndexSet,
-                                         insertionIndexSet: IndexSet,
-                                         modificationIndexSet: IndexSet)
     
     func messageStorageInitialSections(_ messageStorage: MessageStorage)
     
@@ -67,7 +66,6 @@ class MessageStorage {
                 strongSelf.update(sections: sections, indexes: deletions, type: .delete)
                 strongSelf.update(sections: sections, indexes: insertions, type: .insert)
                 strongSelf.update(sections: sections, indexes: modifications, type: .modif)
-                strongSelf.commitSectionsUpdates()
             case .error(let error):
                 fatalError("\(error)")
             }
@@ -99,16 +97,6 @@ class MessageStorage {
         case .modif:
             print("Modif sections \(indexes)")
         }
-    }
-    
-    private func commitSectionsUpdates() {
-        delegate.messageStorageDidUpdateSections(self,
-                                                 deletionIndexSet: sectionsDeleteIndexSet as IndexSet,
-                                                 insertionIndexSet: sectionsInsertIndexSet as IndexSet,
-                                                 modificationIndexSet: sectionsModifIndexSet as IndexSet)
-        sectionsDeleteIndexSet.removeAllIndexes()
-        sectionsInsertIndexSet.removeAllIndexes()
-        sectionsModifIndexSet.removeAllIndexes()
     }
     
     private func createSection(with date: Int) {
@@ -148,9 +136,16 @@ extension MessageStorage: SectionDelegate {
         count += indexes.count
         if count >= expectedCount {
             delegate.messageStorageDidUpdateMessages(self,
+                                                     deletionIndexSet: sectionsDeleteIndexSet as IndexSet,
+                                                     insertionIndexSet: sectionsInsertIndexSet as IndexSet,
+                                                     modificationIndexSet: sectionsModifIndexSet as IndexSet,
                                                      deletionIndexPaths: messagesDeleteIndexPaths,
                                                      insertionIndexPaths: messagesInsertIndexPaths,
                                                      modificationIndexPaths: messagesModifIndexPaths)
+            sectionsDeleteIndexSet.removeAllIndexes()
+            sectionsInsertIndexSet.removeAllIndexes()
+            sectionsModifIndexSet.removeAllIndexes()
+
             messagesDeleteIndexPaths.removeAll()
             messagesInsertIndexPaths.removeAll()
             messagesModifIndexPaths.removeAll()
