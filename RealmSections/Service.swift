@@ -30,7 +30,7 @@ class Service {
         }
         
         var indexes: [Int] = []
-        for index in 0..<15 {
+        for index in 0..<50 {
             indexes.append(index)
         }
         
@@ -105,6 +105,24 @@ class Service {
         try! realm.safeWrite {
             realm.add([message1, message2, message3, message4], update: true)
 //            chat.messages.append(message)
+        }
+    }
+    
+    func add(messages: [Message]) {
+        let realm = try! Realm()
+        let chat = realm.objects(Chat.self).first!
+        
+        try! realm.safeWrite {
+            chat.paggingMessages.append(objectsIn: messages)
+        }
+    }
+    
+    func removePaggingMessages() {
+        let realm = try! Realm()
+        let chat = realm.objects(Chat.self).first!
+        
+        try! realm.safeWrite {
+            chat.paggingMessages.removeAll()
         }
     }
     

@@ -13,6 +13,7 @@ class Chat: Object {
 
     @objc dynamic var id: String = ""
     let messages = List<Message>()
+    let paggingMessages = List<Message>()
     
     override class func primaryKey() -> String? {
         return "id"

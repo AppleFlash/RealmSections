@@ -25,16 +25,17 @@ class Section {
     private var notificationToken: NotificationToken?
     private weak var delegate: SectionDelegate!
     
-    init(date: Int, delegate: SectionDelegate) {
+    init(date: Int, delegate: SectionDelegate, result: Results<Message>) {
         self.date = date
         self.delegate = delegate
+        self.messages = result
         
-        prepareMessages()
+        prepareMessages(for: result)
         setNotificationBlock()
     }
     
-    private func prepareMessages() {
-        messages = try! Realm().objects(Message.self).filter("chatId = %@ AND sectionIdentifier == %@", "0", date).sorted(byKeyPath: "sortValue", ascending: true)
+    private func prepareMessages(for result: Results<Message>) {
+        messages = result.filter("sectionIdentifier == %@", date).sorted(byKeyPath: "sortValue", ascending: true)
     }
     
     private func setNotificationBlock() {

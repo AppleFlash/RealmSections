@@ -39,6 +39,7 @@ class MessageStorage {
     
     private weak var delegate: MessageStorageDelegate!
     private var notification: NotificationToken?
+    private var paggingMessages: Results<Message>!
     
     init(messages: Results<Message>, delegate: MessageStorageDelegate) {
         self.delegate = delegate
@@ -51,6 +52,8 @@ class MessageStorage {
             print("Messages is empty")
             return
         }
+        
+        paggingMessages = messages
         
         let request = messages.distinct(by: ["sectionIdentifier"]).sorted(byKeyPath: "sectionIdentifier")
         notification = request.observe({ [weak self] (changes) in
@@ -109,13 +112,17 @@ class MessageStorage {
     }
     
     private func createSection(with date: Int) {
-        let section = Section(date: date, delegate: self)
+        let section = initSection(with: date)
         sections.append(section)
     }
     
     private func insertSection(with date: Int, at index: Int) {
-        let section = Section(date: date, delegate: self)
+        let section = initSection(with: date)
         sections.insert(section, at: index)
+    }
+    
+    private func initSection(with date: Int) -> Section {
+        return Section(date: date, delegate: self, result: paggingMessages)
     }
     
     deinit {

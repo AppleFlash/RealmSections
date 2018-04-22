@@ -14,22 +14,31 @@ class ViewController: UIViewController {
     private let service = Service()
     @IBOutlet weak var tableView: UITableView!
     
-    var notification: NotificationToken?
-    var messages: Results<Message>!
+    private var notification: NotificationToken?
+    private var paggingMessages: Results<Message>!
+    private var allMessages: Results<Message>!
+    
     lazy var chat: Chat = {
         let realm = try! Realm()
         return realm.objects(Chat.self).first!
     }()
     
+    private var page: Int = 0
+    private let prefetchDistance: Int = 2
+    private let pageSize: Int = 10
+    private var isLoading: Bool = false
+    
     override func viewDidLoad() {
         super.viewDidLoad()
     
         print(Realm.Configuration.defaultConfiguration.fileURL!)
+        service.addInitValues()
         
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
         
-        messages = try! Realm().objects(Message.self).filter("chatId == %@", "0").sorted(byKeyPath: "sortValue", ascending: true)
-        notification = messages.observe({ (changes) in
+        allMessages = try! Realm().objects(Message.self).filter("chatId == %@", "0").sorted(byKeyPath: "sortValue", ascending: true)
+        paggingMessages = chat.paggingMessages.sorted(byKeyPath: "sortValue", ascending: true)
+        notification = paggingMessages.observe({ (changes) in
             switch changes {
             case .initial(let messages):
                 self.messageStorage = MessageStorage(messages: messages, delegate: self)
@@ -45,12 +54,35 @@ class ViewController: UIViewController {
             }
         })
         
-        service.addInitValues()
+        fetchNextPage()
     }
     
+    private func fetchNextPage() {
+        guard !isLoading else {
+            return
+        }
+        
+        isLoading = true
+        var messages = [Message]()
+        messages.reserveCapacity(pageSize)
+        
+        let allMessagesCount = allMessages.count
+        for offset in (pageSize * page)..<(pageSize * (page + 1)) {
+            guard offset < allMessagesCount - 1 else {
+                break
+            }
+            
+            messages.append(allMessages[offset])
+        }
+        
+        page += 1
+        service.add(messages: messages)
+        isLoading = false
+    }
 
     @IBAction func addRandom(_ sender: Any) {
-        service.addRandomMessage()
+        fetchNextPage()
+//        service.addRandomMessage()
 //        service.attemptToAddDuplicate()
 //        service.addDuplicateArary()
     }
@@ -72,6 +104,11 @@ class ViewController: UIViewController {
 //        print("filtered")
     }
     
+    deinit {
+        notification?.invalidate()
+        service.removePaggingMessages()
+    }
+    
 }
 
 extension ViewController: UITableViewDelegate, UITableViewDataSource {
@@ -91,15 +128,22 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return messageStorage.sections[section].messages?.count ?? 0
+        return messageStorage.sections[section].messages.count
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
         let cell = tableView.dequeueReusableCell(withIdentifier: "cell", for: indexPath)
-        let text = messageStorage.sections[indexPath.section].messages?[indexPath.row].sortValue ?? 99999999
+        let text = messageStorage.sections[indexPath.section].messages[indexPath.row].sortValue
         cell.textLabel?.text = "\(text)"
         
         return cell
+    }
+    
+    func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+//        if indexPath.section == tableView.numberOfSections - 1,
+//            tableView.numberOfRows(inSection: indexPath.section) - indexPath.row <= prefetchDistance {
+//            fetchNextPage()
+//        }
     }
     
 }
